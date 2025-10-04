@@ -1,0 +1,457 @@
+openapi: 3.0.3
+info:
+  title: Maniae API
+  description: 広島県のバス運行情報API
+  version: 1.0.0
+servers:
+  - url: https://api.maniae.run
+    description: Production
+  - url: http://localhost:8787
+    description: Local development
+
+paths:
+  /stops:
+    get:
+      summary: バス停検索
+      description: バス停名でバス停を検索
+      operationId: searchStops
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: 検索キーワード（バス停名）
+          schema:
+            type: string
+            example: 広島駅
+      responses:
+        '200':
+          description: 検索結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stops:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Stop'
+        '400':
+          description: リクエストパラメータ不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stops/{stop_id}:
+    get:
+      summary: バス停情報取得
+      description: 指定したバス停の詳細情報を取得
+      operationId: getStop
+      parameters:
+        - name: stop_id
+          in: path
+          required: true
+          description: バス停ID
+          schema:
+            type: string
+            example: "34001"
+      responses:
+        '200':
+          description: バス停情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stop'
+        '404':
+          description: バス停が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /arrivals:
+    get:
+      summary: バス到着情報取得
+      description: 指定したバス停またはODペアのバス到着情報（実績・予測）を取得
+      operationId: getArrivals
+      parameters:
+        - name: stop_id
+          in: query
+          description: バス停ID（単一バス停の到着情報）
+          schema:
+            type: string
+            example: "34001"
+        - name: from_stop_id
+          in: query
+          description: 出発バス停ID（ODペア指定時）
+          schema:
+            type: string
+            example: "34001"
+        - name: to_stop_id
+          in: query
+          description: 到着バス停ID（ODペア指定時）
+          schema:
+            type: string
+            example: "34002"
+        - name: trip_id
+          in: query
+          description: 便ID（オプション）
+          schema:
+            type: string
+        - name: date
+          in: query
+          description: 日付（YYYY-MM-DD形式、デフォルト: 今日）
+          schema:
+            type: string
+            format: date
+            example: "2024-10-04"
+        - name: time_from
+          in: query
+          description: 時刻範囲の開始（HH:MM形式）
+          schema:
+            type: string
+            pattern: '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+            example: "08:00"
+        - name: time_to
+          in: query
+          description: 時刻範囲の終了（HH:MM形式）
+          schema:
+            type: string
+            pattern: '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+            example: "09:00"
+        - name: limit
+          in: query
+          description: 取得件数上限
+          schema:
+            type: integer
+            default: 15
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: オフセット
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: バス到着情報
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trips:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Trip'
+                  total:
+                    type: integer
+                    description: 総件数
+        '400':
+          description: リクエストパラメータ不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /routes/od/{from_stop_id}/{to_stop_id}:
+    get:
+      summary: ODペア情報取得
+      description: 出発バス停と到着バス停のペア情報を取得
+      operationId: getODPair
+      parameters:
+        - name: from_stop_id
+          in: path
+          required: true
+          description: 出発バス停ID
+          schema:
+            type: string
+            example: "34001"
+        - name: to_stop_id
+          in: path
+          required: true
+          description: 到着バス停ID
+          schema:
+            type: string
+            example: "34002"
+      responses:
+        '200':
+          description: ODペア情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ODPair'
+        '404':
+          description: ODペアが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Stop:
+      type: object
+      required:
+        - stop_id
+        - stop_name
+      properties:
+        stop_id:
+          type: string
+          description: バス停ID
+          example: "34001"
+        stop_name:
+          type: string
+          description: バス停名
+          example: 広島駅
+
+    Trip:
+      type: object
+      required:
+        - trip_id
+        - route_name
+        - headsign
+        - stop_times
+      properties:
+        trip_id:
+          type: string
+          description: 便ID（GTFS-JPのtrip_idをそのまま利用）
+          example: "34_20241004_1_0830"
+        route_name:
+          type: string
+          description: 路線名
+          example: "21号線"
+        headsign:
+          type: string
+          description: 行き先表示
+          example: 紙屋町方面
+        stop_times:
+          type: array
+          description: この便のバス停通過情報リスト
+          items:
+            $ref: '#/components/schemas/StopTime'
+
+    StopTime:
+      oneOf:
+        - $ref: '#/components/schemas/StopTimeScheduled'
+        - $ref: '#/components/schemas/StopTimeApproaching'
+        - $ref: '#/components/schemas/StopTimeArrived'
+        - $ref: '#/components/schemas/StopTimeDeparted'
+      discriminator:
+        propertyName: status
+
+    StopTimeScheduled:
+      type: object
+      required:
+        - status
+        - stop_id
+        - stop_name
+        - sequence
+        - scheduled_arrival
+        - scheduled_departure
+      properties:
+        status:
+          type: string
+          enum: [scheduled]
+          description: 予定のみ（まだ到着していない）
+        stop_id:
+          type: string
+          description: バス停ID
+          example: "34001"
+        stop_name:
+          type: string
+          description: バス停名
+          example: 広島駅
+        sequence:
+          type: integer
+          description: この便におけるバス停の順序
+          example: 1
+        scheduled_arrival:
+          type: string
+          format: time
+          description: 予定到着時刻（HH:MM:SS）
+          example: "08:30:00"
+        scheduled_departure:
+          type: string
+          format: time
+          description: 予定出発時刻（HH:MM:SS）
+          example: "08:30:00"
+        estimated_arrival:
+          type: string
+          format: time
+          description: 予測到着時刻（GTFS-RTから取得、ある場合のみ）
+          example: "08:32:00"
+        estimated_departure:
+          type: string
+          format: time
+          description: 予測出発時刻（GTFS-RTから取得、ある場合のみ）
+          example: "08:32:00"
+
+    StopTimeApproaching:
+      type: object
+      required:
+        - status
+        - stop_id
+        - stop_name
+        - sequence
+        - scheduled_arrival
+        - scheduled_departure
+        - estimated_arrival
+        - estimated_departure
+      properties:
+        status:
+          type: string
+          enum: [approaching]
+          description: 接近中
+        stop_id:
+          type: string
+          description: バス停ID
+          example: "34002"
+        stop_name:
+          type: string
+          description: バス停名
+          example: 的場町
+        sequence:
+          type: integer
+          description: この便におけるバス停の順序
+          example: 2
+        scheduled_arrival:
+          type: string
+          format: time
+          description: 予定到着時刻（HH:MM:SS）
+          example: "08:35:00"
+        scheduled_departure:
+          type: string
+          format: time
+          description: 予定出発時刻（HH:MM:SS）
+          example: "08:35:00"
+        estimated_arrival:
+          type: string
+          format: time
+          description: 予測到着時刻（HH:MM:SS）
+          example: "08:37:00"
+        estimated_departure:
+          type: string
+          format: time
+          description: 予測出発時刻（HH:MM:SS）
+          example: "08:37:00"
+
+    StopTimeArrived:
+      type: object
+      required:
+        - status
+        - stop_id
+        - stop_name
+        - sequence
+        - scheduled_arrival
+        - scheduled_departure
+        - actual_arrival
+      properties:
+        status:
+          type: string
+          enum: [arrived]
+          description: 到着済み（停車中）
+        stop_id:
+          type: string
+          description: バス停ID
+          example: "34003"
+        stop_name:
+          type: string
+          description: バス停名
+          example: 紙屋町
+        sequence:
+          type: integer
+          description: この便におけるバス停の順序
+          example: 3
+        scheduled_arrival:
+          type: string
+          format: time
+          description: 予定到着時刻（HH:MM:SS）
+          example: "08:45:00"
+        scheduled_departure:
+          type: string
+          format: time
+          description: 予定出発時刻（HH:MM:SS）
+          example: "08:45:00"
+        actual_arrival:
+          type: string
+          format: time
+          description: 実際の到着時刻（HH:MM:SS）
+          example: "08:46:30"
+
+    StopTimeDeparted:
+      type: object
+      required:
+        - status
+        - stop_id
+        - stop_name
+        - sequence
+        - scheduled_arrival
+        - scheduled_departure
+        - actual_arrival
+        - actual_departure
+      properties:
+        status:
+          type: string
+          enum: [departed]
+          description: 出発済み
+        stop_id:
+          type: string
+          description: バス停ID
+          example: "34004"
+        stop_name:
+          type: string
+          description: バス停名
+          example: 八丁堀
+        sequence:
+          type: integer
+          description: この便におけるバス停の順序
+          example: 4
+        scheduled_arrival:
+          type: string
+          format: time
+          description: 予定到着時刻（HH:MM:SS）
+          example: "08:50:00"
+        scheduled_departure:
+          type: string
+          format: time
+          description: 予定出発時刻（HH:MM:SS）
+          example: "08:50:00"
+        actual_arrival:
+          type: string
+          format: time
+          description: 実際の到着時刻（HH:MM:SS）
+          example: "08:51:15"
+        actual_departure:
+          type: string
+          format: time
+          description: 実際の出発時刻（HH:MM:SS）
+          example: "08:51:30"
+
+    ODPair:
+      type: object
+      required:
+        - from_stop
+        - to_stop
+      properties:
+        from_stop:
+          $ref: '#/components/schemas/Stop'
+        to_stop:
+          $ref: '#/components/schemas/Stop'
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: エラーコード
+          example: INVALID_PARAMETER
+        message:
+          type: string
+          description: エラーメッセージ
+          example: クエリパラメータが不正です
