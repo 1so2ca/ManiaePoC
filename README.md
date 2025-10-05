@@ -17,84 +17,48 @@
 
 ## プロジェクト構成
 
-```
-/
-├── web/              # フロントエンド（Elm + Cloudflare Pages）
-├── api/              # バックエンド（Cloudflare Workers）
-├── containers/       # 日次バッチ（Cloudflare Containers）
-└── docs/             # ドキュメント
-```
+| ディレクトリ | 役割 | 主なポイント |
+| --- | --- | --- |
+| `web/` | フロントエンド（Elm + Cloudflare Pages） | `README.md`にUI/HTTP仕様を記載 |
+| `api/` | Cloudflare Workers API | `openapi.yaml`と`schema/`配下のSQLでAPI/DBを管理 |
+| `containers/` | 日次バッチ（Cloudflare Containers） | 静的GTFSの取得・D1更新フローを記載 |
+| `docs/` | ドキュメント | `responce/`はレビュー履歴 |
 
-各ディレクトリの詳細は、それぞれのREADME.mdを参照してください。
+### データベーススキーマ
+- 静的: `api/schema/gtfs-jp.sql`（`gtfs_datasets`でlatest/current管理、停留所座標チェック付）
+- リアルタイム: `api/schema/gtfs-rt.sql`（`service_date`＋`dataset_id`で便を一意化）
+- 仕様メモ: `docs/responce/api-schema-review-20251005.md`
 
-## Commit Message ルール
+## コーディングルール
 
-Conventional Commitsに従い、subjectは日本語で記述します。
-
-```
-<type>: <subject in Japanese>
-
-<body>
-
-<footer>
-```
-
-### Type
-- `feat`: 新機能
-- `fix`: バグ修正
-- `docs`: ドキュメントのみの変更
-- `style`: コードの意味に影響しない変更（フォーマット等）
-- `refactor`: リファクタリング
-- `test`: テスト追加・修正
-- `chore`: ビルドプロセス・補助ツールの変更
-
-### 例
-```
-feat: バス停検索APIを追加
-fix: 到着時刻表示を修正
-docs: GTFS-RT URLを追加
-refactor: プロジェクトディレクトリ構成を変更
-```
-
-## Pull Request ルール
-
-### タイトル
-- Commit Messageと同じ形式：`<type>: <subject in Japanese>`
-
-### 説明（最小限）
-```
-## 変更内容
-
-
-## 動作確認
-- [ ] 動作確認済み
-```
-
-### マージ条件（PoC）
-- セルフレビューのみ
-- CI/CDチェック（設定後）
-- テストは正常系のみでOK
+| 項目 | ルール |
+| --- | --- |
+| Commit | Conventional Commits、subjectは日本語（例: `feat: バス停検索APIを追加`） |
+| Pull Request | タイトルも同形式。テンプレートに沿い `変更内容` / `動作確認` を記載 |
+| Review | セルフレビューでOK。CI設定後はチェック必須、テストは正常系中心 |
 
 ## 開発タスク
 
 開発は以下の順序で進めます。詳細タスクはGitHub Issueで管理します。
 
 ### 1. API設計
-- [ ] OpenAPI仕様の定義
-  - バス停情報取得API
-  - 運行情報取得API
-  - バス停検索API
+- [x] OpenAPI仕様の定義
+  - [x] バス停検索API
+  - [x] バス停情報取得API
+  - [x] 到着情報取得API
+  - [x] ODペア情報取得API
 
 ### 2. データベース設計
-- [ ] GTFS-JPテーブル定義
-  - stops（バス停）
-  - routes（路線）
-  - trips（便）
-  - stop_times（時刻表）
-- [ ] GTFS-RTテーブル定義
-  - trip_updates（運行情報更新）
-  - vehicle_positions（車両位置）
-  - alerts（運行情報アラート）
+- [x] GTFS-JPテーブル定義
+  - [x] gtfs_datasets（バージョン管理）
+  - [x] stops（バス停）
+  - [x] routes（路線）
+  - [x] trips（便）
+  - [x] stop_times（時刻表）
+- [x] GTFS-RTテーブル定義
+  - [x] realtime_trips（便メタデータキャッシュ）
+  - [x] realtime_stop_times（リアルタイム到着情報）
+  - [ ] 追加拡張（alerts / vehicleなど）
 
 ### 3. ディレクトリ構成
 - [ ] 各リポジトリの詳細ディレクトリ構成決定

@@ -10,6 +10,9 @@
 
 ## データベース
 - Cloudflare D1（SQLite）
+- スキーマ: `schema/gtfs-jp.sql`, `schema/gtfs-rt.sql`
+  - 静的データは`dataset_id`付きで格納（`gtfs_datasets`経由でlatest/currentを判別）
+  - リアルタイムは`realtime_trips`と`realtime_stop_times`にキャッシュし、`service_date`で同一便を追跡
 
 ## API仕様
 
@@ -35,6 +38,7 @@ HTTP APIハンドラー
 ### `src/scheduled/`
 定期実行ハンドラー（分次）
 - GTFS-RTデータの定期取得（1分間隔）
+- `realtime_trips`/`realtime_stop_times` への同期と古いレコードの掃除
 
 ## データフロー
 1. GTFS-RTデータの定期取得（1分間隔）→DB格納
